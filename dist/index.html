@@ -1,0 +1,53 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <title>ComputerEmulator</title>
+    <style>
+        * {
+            --border-color-disabled: rgba(100, 100, 100, 0.4);
+            --background-disabled: rgba(0, 0, 200, 0.1);
+            --background-executing: rgb(255, 140, 0);
+            --background-error: rgba(255, 20, 60, 0.8);
+        }
+        :disabled {
+            border-color: var(--border-color-disabled);
+            background: var(--background-disabled);
+        }
+        #executing {
+            background: var(--background-executing);
+        }
+        #error {
+            background: var(--background-error);
+        }
+    </style>
+
+<link rel="preload" href="/computer-emulator-a0b7163167c50583_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
+<link rel="modulepreload" href="/computer-emulator-a0b7163167c50583.js"></head>
+<body>
+<script type="module">import init from '/computer-emulator-a0b7163167c50583.js';init('/computer-emulator-a0b7163167c50583_bg.wasm');</script><script>(function () {
+    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var url = protocol + '//' + window.location.host + '/_trunk/ws';
+    var poll_interval = 5000;
+    var reload_upon_connect = () => {
+        window.setTimeout(
+            () => {
+                // when we successfully reconnect, we'll force a
+                // reload (since we presumably lost connection to
+                // trunk due to it being killed, so it will have
+                // rebuilt on restart)
+                var ws = new WebSocket(url);
+                ws.onopen = () => window.location.reload();
+                ws.onclose = reload_upon_connect;
+            },
+            poll_interval);
+    };
+
+    var ws = new WebSocket(url);
+    ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.reload) {
+            window.location.reload();
+        }
+    };
+    ws.onclose = reload_upon_connect;
+})()
+</script></body></html>
