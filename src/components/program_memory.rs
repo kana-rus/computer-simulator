@@ -1,5 +1,10 @@
 use yew::{function_component, html, Html, Properties};
 
+#[derive(Properties, PartialEq)]
+pub struct ProgramMemoryProp {
+  pub executing_address: &'static str
+}
+
 fn input_area_style(address: &str) -> &str {
   match address {
     "f"       => "width: 60%; margin-left: 5px;",
@@ -13,11 +18,6 @@ fn mcode_area_id(address: &str, executing_address: &str) -> &'static str {
   } else {
     ""
   }
-}
-
-#[derive(Properties, PartialEq)]
-pub struct ProgramMemoryProp {
-  pub executing_address: &'static str
 }
 
 #[function_component(ProgramMemory)]

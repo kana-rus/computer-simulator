@@ -1,6 +1,6 @@
 use yew::{function_component, html, Callback, Event, MouseEvent, use_state, use_state_eq};
-use wasm_bindgen::{JsCast, JsValue};
-use web_sys::{window, Document, HtmlInputElement, HtmlTextAreaElement, console};
+use wasm_bindgen::{JsCast};
+use web_sys::{window, Document, HtmlInputElement, HtmlTextAreaElement};
 
 mod components; use components::{
   mode_radio::ModeRadio,
@@ -17,14 +17,13 @@ mod utils; use utils::{
   get_display,
   disable_elms_by_class,
   enable_elms_by_class,
-  // print_in_display,
   log_in_display,
   print_machine_code,
   clear_exec_items,
   assemble,
   get_data_list,
   get_parsed_mcode_list,
-  exec, print_in_display,
+  exec,
 };
 
 
@@ -77,7 +76,7 @@ fn switch_to_execute(doc: &Document) {
 fn app() -> Html {
   let executing_address = use_state(|| "");
   let register_value = use_state_eq(|| 0_i64);
-  let data_list = use_state_eq(|| [0_i64; 8]);
+  let data_list = use_state_eq(|| [None; 8]);
   let mcode_list = use_state_eq(|| [(0_usize, 0_usize); 16]);
 
 
@@ -110,11 +109,7 @@ fn app() -> Html {
             data_list.set(list);
             executing_address.set("0");
             switch_to_execute(&doc);
-
             mcode_list.set(get_parsed_mcode_list(&doc));
-            for mcode in *mcode_list {
-              print_in_display(format!("{} {}", mcode.0, mcode.1), &get_display(&doc))
-            }
           }
         }
       } else {
@@ -125,11 +120,11 @@ fn app() -> Html {
   };  /* 選択されていない方のラジオボタンをクリックしてもなぜか選択が変わらない。
   - 見た目: 変わらない
   - onchange: 実行される
-  - 選択: されない（したがって、複数回押すと押した回数だけ onchange が実行される）
-  Callback が move を伴わないようにすると、なぜかちゃんと変わる。
+  - 選択: されない（したがって、複数回連続で押すと押した回数だけ onchange が実行される）
+  Callback が move を伴わないようにすると、なぜかちゃんと選択が変わる。
 
   今回はひとまず、executing_address を、ラジオボタンたちを含むコンポーネントに
-  prop.mode_ref として渡してしまい、その中身が
+  prop として渡してしまい、その中身が
   - 空文字なら Edit mode,
   - そうでなければ Execute mode
   と判断してそれぞれ対応する方のラジオボタンに checked=true を指定した Html を返すように
@@ -152,10 +147,6 @@ fn app() -> Html {
       let result = exec(*executing_address, *mcode_list, *register_value, *data_list);
       match result {
         Ok((next_address, next_register_value, new_data_list)) => {
-          console::log_2(
-            &JsValue::from_str(next_address),
-            &JsValue::from(next_register_value)
-          );
           executing_address.set(next_address);
           register_value.set(next_register_value);
           data_list.set(new_data_list);
@@ -184,7 +175,7 @@ fn app() -> Html {
         </span>
         <span style="flex-basis: 50%; display: flex; flex-flow: column;">
           <span style="flex-basis: 60%">
-            <DataMemory is_edit_mode={*executing_address==""} contents={*data_list}/>
+            <DataMemory data_list={*data_list}/>
           </span>
           <span style="flex-basis: 40%">
             <Display/>

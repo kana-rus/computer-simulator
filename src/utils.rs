@@ -75,17 +75,17 @@ pub fn parse_index_to_address(index: usize) -> &'static str {
     _other => "impossible pattern"
   }
 }
-pub fn get_data_list(doc: &Document) -> Result<[i64; 8], String> {
+pub fn get_data_list(doc: &Document) -> Result<[Option<i64>; 8], String> {
   let data_memory = doc.get_elements_by_class_name("data-memory");
   let data_list = {
-    let mut dl = [0_i64; 8];
+    let mut dl = [None; 8];
     for i in 0..8 {
       let data_str = data_memory.item(i as u32).expect("NO such data-memory item")
                                 .unchecked_into::<HtmlInputElement>()
                                 .value();
       if !data_str.is_empty() {
         match data_str.parse::<i64>() {
-          Ok(data) => dl[i] = data,
+          Ok(data) => dl[i] = Some(data),
           Err(err) => return Err(err.to_string())
         }
       }
@@ -107,28 +107,6 @@ pub fn get_parsed_mcode_list(doc: &Document) -> [(usize, usize); 16] {
   }
   parsed_mcode_list
 }
-/*
-pub fn get_data_at(
-  address: &str, data_memory: HtmlCollection
-) -> Result<i64, ParseIntError> {
-  let index = address.parse::<u32>().unwrap();
-  data_memory
-    .item(index).expect("No such data")
-    .unchecked_into::<HtmlInputElement>()
-    .value()
-    .parse::<i64>()
-}
-pub fn get_program_counter(doc: &Document) -> HtmlInputElement {
-  doc.get_element_by_id("program-counter")
-     .expect("ProgramCounter doesn't exist")
-     .unchecked_into::<HtmlInputElement>()
-}
-*/
-pub fn get_register(doc: &Document) -> HtmlInputElement {
-  doc.get_element_by_id("register")
-     .expect("Register doesn't exist")
-     .unchecked_into::<HtmlInputElement>()
-}
 pub fn get_display(doc: &Document) -> HtmlTextAreaElement {
   doc.get_element_by_id("display")
      .expect("Display doesn't exist")
@@ -140,9 +118,6 @@ fn display() -> HtmlTextAreaElement {
             .unchecked_into::<HtmlTextAreaElement>()
 }
 pub fn clear_exec_items(doc: &Document) {
-  //get_program_counter(doc).set_value("");
-  get_register(doc).set_value("");
-
   let mcode_ares = doc.get_elements_by_class_name("machine-code-area");
   for i in 0..16 {
     let mcode_area = mcode_ares.item(i).expect("No such machine-code-area")
@@ -151,7 +126,7 @@ pub fn clear_exec_items(doc: &Document) {
     mcode_area.remove_attribute("id").expect("Failed to remove attribute \"id\"");
   }
 }
-fn is_data_address(arg: &str) -> bool {
+fn is_direct_data_address(arg: &str) -> bool {
   match arg {
     "0"|"1"|"2"|"3"|"4"|"5"|"6"|"7" => true,
     _other                          => false
@@ -170,7 +145,7 @@ fn is_program_address(arg: &str) -> bool {
     _other                           => false
   }
 }
-fn assert_arg_by( validate_func: fn(&str) -> bool,
+fn assemble_with_arg_by( validate_func: fn(&str) -> bool,
   mut args: SplitAsciiWhitespace, operation_id: &str, err_msg: &str
 ) -> Result<String, String> {
   if let Some(arg) = args.next() {
@@ -183,24 +158,24 @@ fn assert_arg_by( validate_func: fn(&str) -> bool,
     Err(String::from(err_msg))
   }
 }
-pub fn assert_arg_data_address(
+pub fn assemble_with_data_address(
   args: SplitAsciiWhitespace, operation_id: &str
 ) -> Result<String, String> {
   fn validate_func(arg: &str) -> bool {
-    is_data_address(arg) || is_indirect_data_address(arg)
+    is_direct_data_address(arg) || is_indirect_data_address(arg)
   }
-  assert_arg_by(
+  assemble_with_arg_by(
     validate_func, args, operation_id, "1 arg (data address) is required"
   )
 }
-pub fn assert_arg_program_address(
+pub fn assemble_with_program_address(
   args: SplitAsciiWhitespace, operation_id: &str
 ) -> Result<String, String> {
-  assert_arg_by(
+  assemble_with_arg_by(
     is_program_address, args, operation_id, "1 arg (program address) is required"
   )
 }
-pub fn assert_arg_none(
+pub fn assemble_with_none(
   mut args: SplitAsciiWhitespace, operation_id: &str
 ) -> Result<String, String> {
   if args.next() == None {
@@ -209,35 +184,31 @@ pub fn assert_arg_none(
     Err(String::from("This operation can't have any args"))
   }
 }
-pub fn assemble(code: String) -> Result<String, String> {
-  let mut code = code.split_ascii_whitespace();
-  let operation = code.next();
+pub fn assemble(assembly_code: String) -> Result<String, String> {
+  let mut assembly_code = assembly_code.split_ascii_whitespace();
+  let operation = assembly_code.next();
   if operation == None {
-      // deal with as case where arg == ""
-      Ok(String::from("0 0"))
+      Ok(String::from("0 0")) // deal with as case where arg == ""
   } else {
     match operation.unwrap() {
-      // no args
-      "" | "nop" => { assert_arg_none(code, "0") },
-      "print"    => { assert_arg_none(code, "b") },
-      "halt"     => { assert_arg_none(code, "f") },
+      "" | "nop" => { assemble_with_none(assembly_code, "0") },
+      "print"    => { assemble_with_none(assembly_code, "b") },
+      "halt"     => { assemble_with_none(assembly_code, "f") },
 
-      // arg: data_address
-      "load"   => { assert_arg_data_address(code, "1") },
-      "store"  => { assert_arg_data_address(code, "2") },
-      "add"    => { assert_arg_data_address(code, "3") },
-      "sub"    => { assert_arg_data_address(code, "4") },
-      "mul"    => { assert_arg_data_address(code, "5") },
-      "div"    => { assert_arg_data_address(code, "6") },
-      "aprint" => { assert_arg_data_address(code, "c") },
-      "clear"  => { assert_arg_data_address(code, "d") },
-      "inc"    => { assert_arg_data_address(code, "e") },
+      "load"   => { assemble_with_data_address(assembly_code, "1") },
+      "store"  => { assemble_with_data_address(assembly_code, "2") },
+      "add"    => { assemble_with_data_address(assembly_code, "3") },
+      "sub"    => { assemble_with_data_address(assembly_code, "4") },
+      "mul"    => { assemble_with_data_address(assembly_code, "5") },
+      "div"    => { assemble_with_data_address(assembly_code, "6") },
+      "aprint" => { assemble_with_data_address(assembly_code, "c") },
+      "clear"  => { assemble_with_data_address(assembly_code, "d") },
+      "inc"    => { assemble_with_data_address(assembly_code, "e") },
 
-      // arg: program_address
-      "jump"     => { assert_arg_program_address(code, "7") },
-      "jumpzero" => { assert_arg_program_address(code, "8") },
-      "jumpgr"   => { assert_arg_program_address(code, "9") },
-      "jumpge"   => { assert_arg_program_address(code, "a") },
+      "jump"     => { assemble_with_program_address(assembly_code, "7") },
+      "jumpzero" => { assemble_with_program_address(assembly_code, "8") },
+      "jumpgr"   => { assemble_with_program_address(assembly_code, "9") },
+      "jumpge"   => { assemble_with_program_address(assembly_code, "a") },
 
       other => { Err(format!("operation \"{}\" is invalid", other)) }
     }
@@ -259,8 +230,8 @@ pub fn print_machine_code(mcode: String, address: u32, mcodearea_list: &HtmlColl
 
 pub fn exec(
   exec_address: &str, parsed_mcode_list: [(usize,usize); 16],
-  regis_val: i64, data_list: [i64; 8]
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
+  regis_val: i64, data_list: [Option<i64>; 8]
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
     /*
      Ok(next_exec_address, new_regis_val, new_data_list),
      Err(error_message)
@@ -288,8 +259,8 @@ pub fn exec(
 }
 
 fn nop(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8]
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8]
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
   let next_index = parse_address_to_index(exec_address) + 1;
   if next_index < 16 {
     Ok((parse_index_to_address(next_index), regis_val, data_list))
@@ -298,23 +269,27 @@ fn nop(
   }
 }
 fn load(
-  exec_address: &str, data_list: [i64; 8],
+  exec_address: &str, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
-  let new_regis_val = data_list[data_index];
-  let next_index = parse_address_to_index(exec_address) + 1;
-  if next_index < 16 {
-    Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-  } else {
-    Err("ProgramcountError")
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
+  match data_list[data_index] {
+    Some(new_regis_val) => {
+      let next_index = parse_address_to_index(exec_address) + 1;
+      if next_index < 16 {
+        Ok((parse_index_to_address(next_index), new_regis_val, data_list))
+      } else {
+        Err("ProgramcountError")
+      }
+    },
+    None => Err("InvalidDataAccessError")
   }
 }
 fn store(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8],
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
   let mut new_data_list = data_list;
-  new_data_list[data_index] = regis_val;
+  new_data_list[data_index] = Some(regis_val);
   let next_index = parse_address_to_index(exec_address) + 1;
   if next_index < 16 {
     Ok((parse_index_to_address(next_index), regis_val, new_data_list))
@@ -323,67 +298,86 @@ fn store(
   }
 }
 fn add(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8],
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
-  let new_regis_val = regis_val + data_list[data_index];
-  let next_index = parse_address_to_index(exec_address) + 1;
-  if next_index < 16 {
-    Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-  } else {
-    Err("ProgramcountError")
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
+  match data_list[data_index] {
+    Some(data) => {
+      let new_regis_val = regis_val + data;
+      let next_index = parse_address_to_index(exec_address) + 1;
+      if next_index < 16 {
+        Ok((parse_index_to_address(next_index), new_regis_val, data_list))
+      } else {
+        Err("ProgramcountError")
+      }
+    },
+    None => Err("InvalidDataAccessError")
   }
 }
 fn sub(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8],
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
-  let new_regis_val = regis_val - data_list[data_index];
-  let next_index = parse_address_to_index(exec_address) + 1;
-  if next_index < 16 {
-    Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-  } else {
-    Err("ProgramcountError")
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
+  match data_list[data_index] {
+    Some(data) => {
+      let new_regis_val = regis_val - data;
+      let next_index = parse_address_to_index(exec_address) + 1;
+      if next_index < 16 {
+        Ok((parse_index_to_address(next_index), new_regis_val, data_list))
+      } else {
+        Err("ProgramcountError")
+      }
+    },
+    None => Err("InvalidDataAccessError")
   }
 }
 fn mul(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8],
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
-  let new_regis_val = regis_val * data_list[data_index];
-  let next_index = parse_address_to_index(exec_address) + 1;
-  if next_index < 16 {
-    Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-  } else {
-    Err("ProgramcountError")
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
+  match data_list[data_index] {
+    Some(data) => {
+      let new_regis_val = regis_val * data;
+      let next_index = parse_address_to_index(exec_address) + 1;
+      if next_index < 16 {
+        Ok((parse_index_to_address(next_index), new_regis_val, data_list))
+      } else {
+        Err("ProgramcountError")
+      }
+    },
+    None => Err("InvalidDataAccessError")
   }
 }
 fn div(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8],
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
-  let divider = data_list[data_index];
-  if divider == 0 {
-    return Err("ZeroDividingError")
-  }
-  let new_regis_val = regis_val / divider;
-  let next_index = parse_address_to_index(exec_address) + 1;
-  if next_index < 16 {
-    Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-  } else {
-    Err("ProgramcountError")
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
+  match data_list[data_index] {
+    Some(divider) => {
+      if divider == 0 {
+        return Err("ZeroDividingError")
+      }
+      let new_regis_val = regis_val / divider;
+      let next_index = parse_address_to_index(exec_address) + 1;
+      if next_index < 16 {
+        Ok((parse_index_to_address(next_index), new_regis_val, data_list))
+      } else {
+        Err("ProgramcountError")
+      }
+    },
+    None => Err("InvalidDataAccessError")
   }
 }
 fn jump(
-  regis_val: i64, data_list: [i64; 8],
+  regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */next_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
   Ok((parse_index_to_address(next_index), regis_val, data_list))
 }
 fn jumpzero(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8],
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */next_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
   if regis_val == 0 {
     Ok((parse_index_to_address(next_index), regis_val, data_list))
   } else {
@@ -396,9 +390,9 @@ fn jumpzero(
   }
 }
 fn jumpgr(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8],
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */next_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
   if regis_val > 0 {
     Ok((parse_index_to_address(next_index), regis_val, data_list))
   } else {
@@ -411,9 +405,9 @@ fn jumpgr(
   }
 }
 fn jumpge(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8],
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */next_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
   if regis_val >= 0 {
     Ok((parse_index_to_address(next_index), regis_val, data_list))
   } else {
@@ -426,8 +420,8 @@ fn jumpge(
   }
 }
 fn print(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8]
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8]
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
   print_in_display(regis_val.to_string(), &display());
   let next_index = parse_address_to_index(exec_address) + 1;
   if next_index < 16 {
@@ -437,24 +431,28 @@ fn print(
   }
 }
 fn aprint(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8],
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
-  let print_content = data_list[data_index];
-  print_in_display(print_content.to_string(), &display());
-  let next_index = parse_address_to_index(exec_address) + 1;
-  if next_index < 16 {
-    Ok((parse_index_to_address(next_index), regis_val, data_list))
-  } else {
-    Err("ProgramcountError")
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
+  match data_list[data_index] {
+    Some(data) => {
+      print_in_display(data.to_string(), &display());
+      let next_index = parse_address_to_index(exec_address) + 1;
+      if next_index < 16 {
+        Ok((parse_index_to_address(next_index), regis_val, data_list))
+      } else {
+        Err("ProgramcountError")
+      }
+    },
+    None => Err("InvalidDataAccessError")
   }
 }
 fn clear(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8],
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
   let mut new_data_list = data_list;
-  new_data_list[data_index] = 0;
+  new_data_list[data_index] = Some(0);
   let next_index = parse_address_to_index(exec_address) + 1;
   if next_index < 16 {
     Ok((parse_index_to_address(next_index), regis_val, new_data_list))
@@ -463,18 +461,23 @@ fn clear(
   }
 }
 fn inc(
-  exec_address: &str, regis_val: i64, data_list: [i64; 8],
+  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
-) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
+) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
   let mut new_data_list = data_list;
-  new_data_list[data_index] += 1;
-  let next_index = parse_address_to_index(exec_address) + 1;
-  if next_index < 16 {
-    Ok((parse_index_to_address(next_index), regis_val, new_data_list))
-  } else {
-    Err("ProgramcountError")
+  match new_data_list[data_index] {
+    Some(old_data) => {
+      new_data_list[data_index] = Some(old_data + 1);
+      let next_index = parse_address_to_index(exec_address) + 1;
+      if next_index < 16 {
+        Ok((parse_index_to_address(next_index), regis_val, new_data_list))
+      } else {
+        Err("ProgramcountError")
+      }
+    },
+    None => Err("InvalidDataAccessError")
   }
 }
-fn halt() -> Result<(&'static str, i64, [i64; 8]), &'static str> {
-  Err("Halted")
+fn halt() -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
+  Err("halted")
 }
