@@ -1,6 +1,6 @@
 use yew::{function_component, html, Callback, Event, MouseEvent, use_state, use_state_eq};
-use wasm_bindgen::JsCast;
-use web_sys::{window, Document, HtmlInputElement, HtmlTextAreaElement};
+use wasm_bindgen::{JsCast, JsValue};
+use web_sys::{window, Document, HtmlInputElement, HtmlTextAreaElement, console};
 
 mod components; use components::{
   mode_radio::ModeRadio,
@@ -13,12 +13,8 @@ mod components; use components::{
 };
 
 mod utils; use utils::{
-  // log, // dev
   document,
-  // get_register,
-  // get_program_counter,
   get_display,
-  // get_data_at,
   disable_elms_by_class,
   enable_elms_by_class,
   // print_in_display,
@@ -26,11 +22,9 @@ mod utils; use utils::{
   print_machine_code,
   clear_exec_items,
   assemble,
-  // parse_address_to_index,
-  // parse_index_to_address,
   get_data_list,
   get_parsed_mcode_list,
-  exec,
+  exec, print_in_display,
 };
 
 
@@ -64,16 +58,16 @@ fn assembe_program(doc: &Document) -> bool {
   }
   assembled_successfully
 }
-fn switch_to_edit(doc: Document) {
-  clear_exec_items(&doc);
-  disable_elms_by_class("process-buttons", &doc);
-  enable_elms_by_class("assembly-code-area", &doc);
-  enable_elms_by_class("data-memory", &doc);
+fn switch_to_edit(doc: &Document) {
+  clear_exec_items(doc);
+  disable_elms_by_class("process-buttons", doc);
+  enable_elms_by_class("assembly-code-area", doc);
+  enable_elms_by_class("data-memory", doc);
 }
-fn switch_to_execute(doc: Document) {
-  disable_elms_by_class("assembly-code-area", &doc);
-  disable_elms_by_class("data-memory", &doc);
-  if assembe_program(&doc) {
+fn switch_to_execute(doc: &Document) {
+  disable_elms_by_class("assembly-code-area", doc);
+  disable_elms_by_class("data-memory", doc);
+  if assembe_program(doc) {
     enable_elms_by_class("process-buttons", &doc);
   }
 }
@@ -84,7 +78,7 @@ fn app() -> Html {
   let executing_address = use_state(|| "");
   let register_value = use_state_eq(|| 0_i64);
   let data_list = use_state_eq(|| [0_i64; 8]);
-  let mcode_list = use_state(|| [(0_usize, 0_usize); 16]); // naturally imutable during execute mode
+  let mcode_list = use_state_eq(|| [(0_usize, 0_usize); 16]);
 
 
   let handle_reset = Callback::from(|_:MouseEvent| {
@@ -107,18 +101,25 @@ fn app() -> Html {
         match get_data_list(&doc) {
           Err(msg) => {
             log_in_display(msg, &get_display(&doc));
-            switch_to_edit(doc);
+            doc.get_element_by_id("edit-button")
+               .expect("Edit button not found")
+               .unchecked_into::<HtmlInputElement>()
+               .click()
           },
           Ok(list) => {
             data_list.set(list);
-            mcode_list.set(get_parsed_mcode_list(&doc));
             executing_address.set("0");
-            switch_to_execute(doc);
+            switch_to_execute(&doc);
+
+            mcode_list.set(get_parsed_mcode_list(&doc));
+            for mcode in *mcode_list {
+              print_in_display(format!("{} {}", mcode.0, mcode.1), &get_display(&doc))
+            }
           }
         }
       } else {
         executing_address.set("");
-        switch_to_edit(doc);
+        switch_to_edit(&doc);
       }
     })
   };  /* 選択されていない方のラジオボタンをクリックしてもなぜか選択が変わらない。
@@ -139,11 +140,22 @@ fn app() -> Html {
     let executing_address = executing_address.clone();
     let register_value = register_value.clone();
     let data_list = data_list.clone();
+    // let mcode_list = mcode_list.clone();
     Callback::from(move |_:MouseEvent| {
       let doc = document();
+
+    //  mcode_list.set(get_parsed_mcode_list(&doc));
+    //  for mcode in *mcode_list {
+    //    print_in_display(format!("{} {}", mcode.0, mcode.1), &get_display(&doc))
+    //  }
+
       let result = exec(*executing_address, *mcode_list, *register_value, *data_list);
       match result {
         Ok((next_address, next_register_value, new_data_list)) => {
+          console::log_2(
+            &JsValue::from_str(next_address),
+            &JsValue::from(next_register_value)
+          );
           executing_address.set(next_address);
           register_value.set(next_register_value);
           data_list.set(new_data_list);
@@ -154,7 +166,7 @@ fn app() -> Html {
              .unchecked_into::<HtmlInputElement>()
              .click();
           executing_address.set("");
-          switch_to_edit(doc)
+          switch_to_edit(&doc)
         }
       }
     })

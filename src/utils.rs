@@ -33,13 +33,24 @@ pub fn enable_elms_by_class(class_name: &str, doc: &Document) {
 }
 pub fn parse_address_to_index(address: &str) -> usize {
   match address {
+    "0" => 0,
+    "1" => 1,
+    "2" => 2,
+    "3" => 3,
+    "4" => 4,
+    "5" => 5,
+    "6" => 6,
+    "7" => 7,
+    "8" => 8,
+    "9" => 9,
     "a" => 10,
     "b" => 11,
     "c" => 12,
     "d" => 13,
     "e" => 14,
     "f" => 15,
-    _other => address.parse().unwrap() // 0〜9
+    // other => address.parse().expect(&format!("parse error at {}", other)) // 0〜9
+    _other => 10000000
   }
 }
 pub fn parse_index_to_address(index: usize) -> &'static str {
@@ -69,12 +80,14 @@ pub fn get_data_list(doc: &Document) -> Result<[i64; 8], String> {
   let data_list = {
     let mut dl = [0_i64; 8];
     for i in 0..8 {
-      let data_str = data_memory.item(i).expect("NO such data-memory item")
+      let data_str = data_memory.item(i as u32).expect("NO such data-memory item")
                                 .unchecked_into::<HtmlInputElement>()
                                 .value();
-      match data_str.parse::<i64>() {
-        Ok(data) => dl[i as usize] = data,
-        Err(err) => return Err(err.to_string())
+      if !data_str.is_empty() {
+        match data_str.parse::<i64>() {
+          Ok(data) => dl[i] = data,
+          Err(err) => return Err(err.to_string())
+        }
       }
     }
     dl
@@ -90,7 +103,7 @@ pub fn get_parsed_mcode_list(doc: &Document) -> [(usize, usize); 16] {
                            .value();
     // certainly to be form of '¥ ¥' beacuse this has passed assembling
     let parsed_mcode = mcode.split_at(1);
-    parsed_mcode_list[i] = (parse_address_to_index(parsed_mcode.0), parse_address_to_index(parsed_mcode.1));
+    parsed_mcode_list[i] = (parse_address_to_index(parsed_mcode.0), parse_address_to_index(parsed_mcode.1.trim_start()));
   }
   parsed_mcode_list
 }
@@ -121,10 +134,10 @@ pub fn get_display(doc: &Document) -> HtmlTextAreaElement {
      .expect("Display doesn't exist")
      .unchecked_into::<HtmlTextAreaElement>()
 }
-fn display() -> HtmlInputElement {
+fn display() -> HtmlTextAreaElement {
   document().get_element_by_id("display")
             .expect("display not found")
-            .unchecked_into::<HtmlInputElement>()
+            .unchecked_into::<HtmlTextAreaElement>()
 }
 pub fn clear_exec_items(doc: &Document) {
   //get_program_counter(doc).set_value("");
@@ -231,7 +244,8 @@ pub fn assemble(code: String) -> Result<String, String> {
   }
 }
 pub fn print_in_display(msg: String, display: &HtmlTextAreaElement) {
-  display.set_value(format!("{}{}\n", display.value(), msg).as_str())
+  display.set_value(format!("{}{}\n", display.value(), msg).as_str());
+  display.set_scroll_top(display.scroll_height());
 }
 pub fn log_in_display(msg: String, display: &HtmlTextAreaElement) {
   print_in_display(format!("[log] {}", msg), display)
@@ -414,7 +428,7 @@ fn jumpge(
 fn print(
   exec_address: &str, regis_val: i64, data_list: [i64; 8]
 ) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
-  display().set_value(&regis_val.to_string());
+  print_in_display(regis_val.to_string(), &display());
   let next_index = parse_address_to_index(exec_address) + 1;
   if next_index < 16 {
     Ok((parse_index_to_address(next_index), regis_val, data_list))
@@ -427,7 +441,7 @@ fn aprint(
   /* arg */data_index: usize
 ) -> Result<(&'static str, i64, [i64; 8]), &'static str> {
   let print_content = data_list[data_index];
-  display().set_value(&print_content.to_string());
+  print_in_display(print_content.to_string(), &display());
   let next_index = parse_address_to_index(exec_address) + 1;
   if next_index < 16 {
     Ok((parse_index_to_address(next_index), regis_val, data_list))
