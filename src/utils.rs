@@ -10,6 +10,9 @@ use web_sys::{
     HtmlCollection
 };
 
+pub mod exec_utils;
+
+
 pub fn document() -> Document {
   window().expect("Window is not set")
           .document()
@@ -107,7 +110,7 @@ pub fn get_parsed_mcode_list(doc: &Document) -> [(usize, usize); 16] {
   }
   parsed_mcode_list
 }
-pub fn get_display(doc: &Document) -> HtmlTextAreaElement {
+pub fn display_of(doc: &Document) -> HtmlTextAreaElement {
   doc.get_element_by_id("display")
      .expect("Display doesn't exist")
      .unchecked_into::<HtmlTextAreaElement>()
@@ -183,7 +186,7 @@ fn assemble_with_none(
     Err(String::from("This operation can't have any args"))
   }
 }
-pub fn assemble(assembly_code: String) -> Result<String, String> {
+fn assemble(assembly_code: String) -> Result<String, String> {
   let mut assembly_code = assembly_code.split_ascii_whitespace();
   let operation = assembly_code.next();
   if operation == None {
@@ -213,387 +216,61 @@ pub fn assemble(assembly_code: String) -> Result<String, String> {
     }
   }
 }
+pub fn assembe_program(doc: &Document) -> bool {
+  let program = doc.get_elements_by_class_name("assembly-code-area");
+  let machine_code_area_list = doc.get_elements_by_class_name("machine-code-area");
+  let display = doc.get_element_by_id("display")
+                   .expect("display doesm't exist")
+                   .unchecked_into::<HtmlTextAreaElement>();
+  
+  let mut assembled_successfully = true;
+  for address in 0..16 {
+    let assembly_code = program.item(address)
+                               .expect("failed to get code from program")
+                               .unchecked_into::<HtmlInputElement>()
+                               .value();
+    match assemble(assembly_code) {
+      Err(msg) => {
+        print_log_in_display(format!("line {}: AssembleError", address), &display);
+        print_log_in_display(msg, &display);
+        assembled_successfully = false;
+        break;
+      },
+      Ok(machine_code) => {
+        print_machine_code(machine_code, address, &machine_code_area_list);
+      }
+    }
+  }
+  if assembled_successfully {
+    print_log_in_display(String::from("assembled successfully"), &display);
+  }
+  assembled_successfully
+}
+
 pub fn print_in_display(msg: String, display: &HtmlTextAreaElement) {
   display.set_value(format!("{}{}\n", display.value(), msg).as_str());
   display.set_scroll_top(display.scroll_height());
 }
-pub fn log_in_display(msg: String, display: &HtmlTextAreaElement) {
+pub fn print_log_in_display(msg: String, display: &HtmlTextAreaElement) {
   print_in_display(format!("[log] {}", msg), display)
 }
-pub fn print_machine_code(mcode: String, address: u32, mcodearea_list: &HtmlCollection) {
+fn print_machine_code(mcode: String, address: u32, mcodearea_list: &HtmlCollection) {
   mcodearea_list.item(address)
                 .expect("No such machine_code_area")
                 .unchecked_into::<HtmlInputElement>()
                 .set_value(mcode.as_str())
 }
 
-pub fn exec(
-  exec_address: &str, parsed_mcode_list: [(usize,usize); 16],
-  regis_val: i64, data_list: [Option<i64>; 8]
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-    /*
-     Ok(next_exec_address, new_regis_val, new_data_list),
-     Err(error_message)
-    */
-  let (operation_id, arg) = parsed_mcode_list[parse_address_to_index(exec_address)];
-  match operation_id {
-    0  => { nop(     exec_address, regis_val, data_list     ) }
-    1  => { load(    exec_address,            data_list, arg) }
-    2  => { store(   exec_address, regis_val, data_list, arg) }
-    3  => { add(     exec_address, regis_val, data_list, arg) }
-    4  => { sub(     exec_address, regis_val, data_list, arg) }
-    5  => { mul(     exec_address, regis_val, data_list, arg) }
-    6  => { div(     exec_address, regis_val, data_list, arg) }
-    7  => { jump(                  regis_val, data_list, arg) }
-    8  => { jumpzero(exec_address, regis_val, data_list, arg) }
-    9  => { jumpgr(  exec_address, regis_val, data_list, arg) }
-    10 => { jumpge(  exec_address, regis_val, data_list, arg) }
-    11 => { print(   exec_address, regis_val, data_list     ) }
-    12 => { aprint(  exec_address, regis_val, data_list, arg) }
-    13 => { clear(   exec_address, regis_val, data_list, arg) }
-    14 => { inc(     exec_address, regis_val, data_list, arg) }
-    15 => { halt() }
-    _other => Err("OperationIdError")
+pub fn switch_to_edit(doc: &Document) {
+  clear_exec_items(doc);
+  disable_elms_by_class("process-buttons", doc);
+  enable_elms_by_class("assembly-code-area", doc);
+  enable_elms_by_class("data-memory", doc);
+}
+pub fn switch_to_execute(doc: &Document) {
+  if assembe_program(doc) {
+    enable_elms_by_class("process-buttons", doc);
+    disable_elms_by_class("assembly-code-area", doc);
+    disable_elms_by_class("data-memory", doc);
   }
-}
-
-fn nop(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8]
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  let next_index = parse_address_to_index(exec_address) + 1;
-  if next_index < 16 {
-    Ok((parse_index_to_address(next_index), regis_val, data_list))
-  } else {
-    Err("ProgramCountError")
-  }
-}
-fn load(
-  exec_address: &str, data_list: [Option<i64>; 8],
-  /* arg */data_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if data_index < 8 { // direct_data_index
-    match data_list[data_index] {
-      Some(new_regis_val) => {
-        let next_index = parse_address_to_index(exec_address) + 1;
-        if next_index < 16 {
-          Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-        } else {
-          Err("ProgramcountError")
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  } else { // indirect_data_index
-    match data_list[data_index - 8] {
-      Some(direct_data_index) => {
-        if direct_data_index < 0 {
-          Err("NegativeIndexError")
-        } else {
-          load(exec_address, data_list, direct_data_index as usize)
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  }
-}
-fn store(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */data_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if data_index < 8 { // direct_data_index
-    let mut new_data_list = data_list;
-    new_data_list[data_index] = Some(regis_val);
-    let next_index = parse_address_to_index(exec_address) + 1;
-    if next_index < 16 {
-      Ok((parse_index_to_address(next_index), regis_val, new_data_list))
-    } else {
-      Err("ProgramcountError")
-    }
-  } else { // indirect_data_index
-    match data_list[data_index - 8] {
-      Some(direct_data_index) => {
-        if direct_data_index < 0 {
-          Err("NegativeIndexError")
-        } else {
-          store(exec_address, regis_val, data_list, direct_data_index as usize)
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  }
-}
-fn add(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */data_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if data_index < 8 { // direct_data_index
-    match data_list[data_index] {
-      Some(data) => {
-        let new_regis_val = regis_val + data;
-        let next_index = parse_address_to_index(exec_address) + 1;
-        if next_index < 16 {
-          Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-        } else {
-          Err("ProgramcountError")
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  } else { // indirect_data_index
-    match data_list[data_index - 8] {
-      Some(direct_data_index) => {
-        if direct_data_index < 0 {
-          Err("NegativeIndexError")
-        } else {
-          add(exec_address, regis_val, data_list, direct_data_index as usize)
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  }
-}
-fn sub(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */data_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if data_index < 8 { // direct_data_index
-    match data_list[data_index] {
-      Some(data) => {
-        let new_regis_val = regis_val - data;
-        let next_index = parse_address_to_index(exec_address) + 1;
-        if next_index < 16 {
-          Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-        } else {
-          Err("ProgramcountError")
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  } else { // indirect_data_index
-    match data_list[data_index - 8] {
-      Some(direct_data_index) => {
-        if direct_data_index < 0 {
-          Err("NegativeIndexError")
-        } else {
-          sub(exec_address, regis_val, data_list, direct_data_index as usize)
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  }
-}
-fn mul(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */data_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if data_index < 8 { // direct_data_index
-    match data_list[data_index] {
-      Some(data) => {
-        let new_regis_val = regis_val * data;
-        let next_index = parse_address_to_index(exec_address) + 1;
-        if next_index < 16 {
-          Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-        } else {
-          Err("ProgramcountError")
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  } else { // indirect_data_index
-    match data_list[data_index - 8] {
-      Some(direct_data_index) => {
-        if direct_data_index < 0 {
-          Err("NegativeIndexError")
-        } else {
-          mul(exec_address, regis_val, data_list, direct_data_index as usize)
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  }
-}
-fn div(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */data_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if data_index < 8 { // direct_data_index
-    match data_list[data_index] {
-      Some(divider) => {
-        if divider == 0 {
-          return Err("ZeroDividingError")
-        }
-        let new_regis_val = regis_val / divider;
-        let next_index = parse_address_to_index(exec_address) + 1;
-        if next_index < 16 {
-          Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-        } else {
-          Err("ProgramcountError")
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  } else { // indirect_data_index
-    match data_list[data_index - 8] {
-      Some(direct_data_index) => {
-        if direct_data_index < 0 {
-          Err("NegativeIndexError")
-        } else {
-          div(exec_address, regis_val, data_list, direct_data_index as usize)
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  }
-}
-fn jump(
-  regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */next_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  Ok((parse_index_to_address(next_index), regis_val, data_list))
-}
-fn jumpzero(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */next_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if regis_val == 0 {
-    Ok((parse_index_to_address(next_index), regis_val, data_list))
-  } else {
-    let next_index = parse_address_to_index(exec_address) + 1;
-    if next_index < 16 {
-      Ok((parse_index_to_address(next_index), regis_val, data_list))
-    } else {
-      Err("ProgramcountError")
-    }
-  }
-}
-fn jumpgr(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */next_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if regis_val > 0 {
-    Ok((parse_index_to_address(next_index), regis_val, data_list))
-  } else {
-    let next_index = parse_address_to_index(exec_address) + 1;
-    if next_index < 16 {
-      Ok((parse_index_to_address(next_index), regis_val, data_list))
-    } else {
-      Err("ProgramcountError")
-    }
-  }
-}
-fn jumpge(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */next_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if regis_val >= 0 {
-    Ok((parse_index_to_address(next_index), regis_val, data_list))
-  } else {
-    let next_index = parse_address_to_index(exec_address) + 1;
-    if next_index < 16 {
-      Ok((parse_index_to_address(next_index), regis_val, data_list))
-    } else {
-      Err("ProgramcountError")
-    }
-  }
-}
-fn print(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8]
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  print_in_display(regis_val.to_string(), &display());
-  let next_index = parse_address_to_index(exec_address) + 1;
-  if next_index < 16 {
-    Ok((parse_index_to_address(next_index), regis_val, data_list))
-  } else {
-    Err("ProgramcountError")
-  }
-}
-fn aprint(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */data_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if data_index < 8 { // direct_data_index
-    match data_list[data_index] {
-      Some(data) => {
-        print_in_display(data.to_string(), &display());
-        let next_index = parse_address_to_index(exec_address) + 1;
-        if next_index < 16 {
-          Ok((parse_index_to_address(next_index), regis_val, data_list))
-        } else {
-          Err("ProgramcountError")
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  } else { // indirect_data_index
-    match data_list[data_index - 8] {
-      Some(direct_data_index) => {
-        if direct_data_index < 0 {
-          Err("NegativeIndexError")
-        } else {
-          aprint(exec_address, regis_val, data_list, direct_data_index as usize)
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  }
-}
-fn clear(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */data_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if data_index < 8 { // direct_data_index
-    let mut new_data_list = data_list;
-    new_data_list[data_index] = Some(0);
-    let next_index = parse_address_to_index(exec_address) + 1;
-    if next_index < 16 {
-      Ok((parse_index_to_address(next_index), regis_val, new_data_list))
-    } else {
-      Err("ProgramcountError")
-    }
-  } else { // indirect_data_index
-    match data_list[data_index - 8] {
-      Some(direct_data_index) => {
-        if direct_data_index < 0 {
-          Err("NegativeIndexError")
-        } else {
-          clear(exec_address, regis_val, data_list, direct_data_index as usize)
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  }
-}
-fn inc(
-  exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
-  /* arg */data_index: usize
-) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  if data_index < 8 { // direct_data_index
-    let mut new_data_list = data_list;
-    match new_data_list[data_index] {
-      Some(old_data) => {
-        new_data_list[data_index] = Some(old_data + 1);
-        let next_index = parse_address_to_index(exec_address) + 1;
-        if next_index < 16 {
-          Ok((parse_index_to_address(next_index), regis_val, new_data_list))
-        } else {
-          Err("ProgramcountError")
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  } else { // indirect_data_index
-    match data_list[data_index - 8] {
-      Some(direct_data_index) => {
-        if direct_data_index < 0 {
-          Err("NegativeIndexError")
-        } else {
-          inc(exec_address, regis_val, data_list, direct_data_index as usize)
-        }
-      },
-      None => Err("InvalidDataAccessError")
-    }
-  }
-}
-fn halt() -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  Err("halted")
 }

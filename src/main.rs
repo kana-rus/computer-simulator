@@ -1,6 +1,6 @@
 use yew::{function_component, html, Callback, Event, MouseEvent, use_state_eq};
 use wasm_bindgen::{JsCast};
-use web_sys::{window, Document, HtmlInputElement, HtmlTextAreaElement};
+use web_sys::{window, HtmlInputElement};
 
 mod components; use components::{
   mode_radio::ModeRadio,
@@ -14,93 +14,19 @@ mod components; use components::{
 
 mod utils; use utils::{
   document,
-  get_display,
-  disable_elms_by_class,
-  enable_elms_by_class,
-  log_in_display,
-  print_machine_code,
-  clear_exec_items,
-  assemble,
+  print_log_in_display,
+  display_of,
   get_data_list,
   get_parsed_mcode_list,
-  exec,
-  parse_address_to_index
+  parse_address_to_index,
+  switch_to_edit,
+  switch_to_execute,
+
+  exec_utils::{
+    exec,
+    go_through,
+  }
 };
-
-
-fn assembe_program(doc: &Document) -> bool {
-  let program = doc.get_elements_by_class_name("assembly-code-area");
-  let machine_code_area_list = doc.get_elements_by_class_name("machine-code-area");
-  let display = doc.get_element_by_id("display")
-                   .expect("display doesm't exist")
-                   .unchecked_into::<HtmlTextAreaElement>();
-  
-  let mut assembled_successfully = true;
-  for address in 0..16 {
-    let assembly_code = program.item(address)
-                               .expect("failed to get code from program")
-                               .unchecked_into::<HtmlInputElement>()
-                               .value();
-    match assemble(assembly_code) {
-      Err(msg) => {
-        log_in_display(format!("line {}: AssembleError", address), &display);
-        log_in_display(msg, &display);
-        assembled_successfully = false;
-        break;
-      },
-      Ok(machine_code) => {
-        print_machine_code(machine_code, address, &machine_code_area_list);
-      }
-    }
-  }
-  if assembled_successfully {
-    log_in_display(String::from("assembled successfully"), &display);
-  }
-  assembled_successfully
-}
-
-fn switch_to_edit(doc: &Document) {
-  clear_exec_items(doc);
-  disable_elms_by_class("process-buttons", doc);
-  enable_elms_by_class("assembly-code-area", doc);
-  enable_elms_by_class("data-memory", doc);
-}
-fn switch_to_execute(doc: &Document) {
-  if assembe_program(doc) {
-    enable_elms_by_class("process-buttons", doc);
-    disable_elms_by_class("assembly-code-area", doc);
-    disable_elms_by_class("data-memory", doc);
-  }
-}
-fn go_through( mcode_list: [(usize,usize); 16],
-  mut exec_address: &'static str,
-  mut regis_val: i64,
-  mut datalist: [Option<i64>; 8]
-)// -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str>
- // /* last (exec_address, regis_val, datalist) */
-  -> Result<[Option<i64>; 8], (String, [Option<i64>; 8])>
-{
-  for i in 0..3000 {
-    if i == 2999 {
-      let msg = format!("line {}: {}", parse_address_to_index(exec_address), "InfiniteLoopError");
-      return Err((msg, datalist))
-    }
-
-    let result = exec(exec_address, mcode_list, regis_val, datalist);
-    match result {
-      Err(msg) => {
-        let msg = format!("line {}: {}", parse_address_to_index(exec_address), msg);
-        return Err((msg, datalist)); 
-      },
-      Ok((next_address, next_register_value, new_data_list)) => {
-        exec_address = next_address;
-        regis_val = next_register_value;
-        datalist = new_data_list;
-      }
-    }
-  }
-  Ok(datalist)
-}
 
 
 #[function_component(App)]
@@ -131,7 +57,7 @@ fn app() -> Html {
       if is_execute_mode {
         match get_data_list(&doc) {
           Err(msg) => {
-            log_in_display(msg, &get_display(&doc));
+            print_log_in_display(msg, &display_of(&doc));
             doc.get_element_by_id("edit-button")
                .expect("Edit button not found")
                .unchecked_into::<HtmlInputElement>()
@@ -188,7 +114,7 @@ fn app() -> Html {
           let error_msg = format!("line {}: {}",
             parse_address_to_index(*executing_address), msg
           );
-          log_in_display(error_msg, &get_display(&doc));
+          print_log_in_display(error_msg, &display_of(&doc));
 
           register_value.set(0);
           executing_address.set("");
@@ -216,7 +142,7 @@ fn app() -> Html {
         },
         Err((msg, last_datalist)) => {
           data_list.set(last_datalist);
-          log_in_display(msg, &get_display(&doc));
+          print_log_in_display(msg, &display_of(&doc));
         }
       }
       register_value.set(0);
