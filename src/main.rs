@@ -1,4 +1,4 @@
-use yew::{function_component, html, Callback, Event, MouseEvent, use_state, use_state_eq};
+use yew::{function_component, html, Callback, Event, MouseEvent, use_state_eq};
 use wasm_bindgen::{JsCast};
 use web_sys::{window, Document, HtmlInputElement, HtmlTextAreaElement};
 
@@ -24,6 +24,7 @@ mod utils; use utils::{
   get_data_list,
   get_parsed_mcode_list,
   exec,
+  parse_address_to_index
 };
 
 
@@ -57,6 +58,7 @@ fn assembe_program(doc: &Document) -> bool {
   }
   assembled_successfully
 }
+
 fn switch_to_edit(doc: &Document) {
   clear_exec_items(doc);
   disable_elms_by_class("process-buttons", doc);
@@ -64,17 +66,46 @@ fn switch_to_edit(doc: &Document) {
   enable_elms_by_class("data-memory", doc);
 }
 fn switch_to_execute(doc: &Document) {
-  disable_elms_by_class("assembly-code-area", doc);
-  disable_elms_by_class("data-memory", doc);
   if assembe_program(doc) {
-    enable_elms_by_class("process-buttons", &doc);
+    enable_elms_by_class("process-buttons", doc);
+    disable_elms_by_class("assembly-code-area", doc);
+    disable_elms_by_class("data-memory", doc);
   }
+}
+fn go_through( mcode_list: [(usize,usize); 16],
+  mut exec_address: &'static str,
+  mut regis_val: i64,
+  mut datalist: [Option<i64>; 8]
+)// -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str>
+ // /* last (exec_address, regis_val, datalist) */
+  -> Result<[Option<i64>; 8], (String, [Option<i64>; 8])>
+{
+  for i in 0..3000 {
+    if i == 2999 {
+      let msg = format!("line {}: {}", parse_address_to_index(exec_address), "InfiniteLoopError");
+      return Err((msg, datalist))
+    }
+
+    let result = exec(exec_address, mcode_list, regis_val, datalist);
+    match result {
+      Err(msg) => {
+        let msg = format!("line {}: {}", parse_address_to_index(exec_address), msg);
+        return Err((msg, datalist)); 
+      },
+      Ok((next_address, next_register_value, new_data_list)) => {
+        exec_address = next_address;
+        regis_val = next_register_value;
+        datalist = new_data_list;
+      }
+    }
+  }
+  Ok(datalist)
 }
 
 
 #[function_component(App)]
 fn app() -> Html {
-  let executing_address = use_state(|| "");
+  let executing_address = use_state_eq(|| "");
   let register_value = use_state_eq(|| 0_i64);
   let data_list = use_state_eq(|| [None; 8]);
   let mcode_list = use_state_eq(|| [(0_usize, 0_usize); 16]);
@@ -88,10 +119,11 @@ fn app() -> Html {
     
   let handle_mode_change = {
     let executing_address = executing_address.clone();
+    let register_value = register_value.clone();
     let data_list = data_list.clone();
     let mcode_list = mcode_list.clone();
+    let doc = document();
     Callback::from(move |_:Event| {
-      let doc = document();
       let is_execute_mode = doc.get_element_by_id("execute-button")
                                .expect("Execute button doesn't exist")
                                .unchecked_into::<HtmlInputElement>()
@@ -109,10 +141,12 @@ fn app() -> Html {
             data_list.set(list);
             executing_address.set("0");
             switch_to_execute(&doc);
+            // after machine codes get rendered by switch_to_execute() 
             mcode_list.set(get_parsed_mcode_list(&doc));
           }
         }
       } else {
+        register_value.set(0);
         executing_address.set("");
         switch_to_edit(&doc);
       }
@@ -133,18 +167,17 @@ fn app() -> Html {
 
   let handle_step = {
     let executing_address = executing_address.clone();
+    let mcode_list = mcode_list.clone();
     let register_value = register_value.clone();
     let data_list = data_list.clone();
-    // let mcode_list = mcode_list.clone();
+    let doc = document();
+    
     Callback::from(move |_:MouseEvent| {
-      let doc = document();
-
-    //  mcode_list.set(get_parsed_mcode_list(&doc));
-    //  for mcode in *mcode_list {
-    //    print_in_display(format!("{} {}", mcode.0, mcode.1), &get_display(&doc))
-    //  }
-
-      let result = exec(*executing_address, *mcode_list, *register_value, *data_list);
+      let result = exec(*executing_address,
+        *mcode_list,
+        *register_value,
+        *data_list
+      );
       match result {
         Ok((next_address, next_register_value, new_data_list)) => {
           executing_address.set(next_address);
@@ -152,16 +185,46 @@ fn app() -> Html {
           data_list.set(new_data_list);
         },
         Err(msg) => {
-          log_in_display(String::from(msg), &get_display(&doc));
-          doc.get_element_by_id("edit-button").expect("Edit button not found")
-             .unchecked_into::<HtmlInputElement>()
-             .click();
+          let error_msg = format!("line {}: {}",
+            parse_address_to_index(*executing_address), msg
+          );
+          log_in_display(error_msg, &get_display(&doc));
+
+          register_value.set(0);
           executing_address.set("");
-          switch_to_edit(&doc)
+          switch_to_edit(&doc);
         }
       }
     })
   };
+
+  let handle_go_through = {
+    let executing_address = executing_address.clone();
+    let register_value = register_value.clone();
+    let data_list = data_list.clone();
+    let doc = document();
+
+    Callback::from(move |_:MouseEvent| {
+      let result = go_through( *mcode_list,
+        *executing_address,
+        *register_value,
+        *data_list
+      );
+      match result {
+        Ok(last_datalist) => {
+          data_list.set(last_datalist);
+        },
+        Err((msg, last_datalist)) => {
+          data_list.set(last_datalist);
+          log_in_display(msg, &get_display(&doc));
+        }
+      }
+      register_value.set(0);
+      executing_address.set("");
+      switch_to_edit(&doc);
+    })
+  };
+    
   
   html! {
     <>
@@ -187,7 +250,7 @@ fn app() -> Html {
           <ProgramCounter address={*executing_address}/>
           <Register value={*register_value} is_edit_mode={*executing_address==""}/>
         </span>
-        <ProcessButtons {handle_step}/>
+        <ProcessButtons {handle_step} {handle_go_through}/>
       </div>
     </> 
   }

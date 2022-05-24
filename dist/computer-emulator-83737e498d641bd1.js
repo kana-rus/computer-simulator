@@ -270,7 +270,7 @@ async function load(module, imports) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('computer-emulator-7738a109b363dff6_bg.wasm', import.meta.url);
+        input = new URL('computer-emulator-83737e498d641bd1_bg.wasm', import.meta.url);
     }
     const imports = {};
     imports.wbg = {};
@@ -511,8 +511,8 @@ async function init(input) {
     imports.wbg.__wbindgen_throw = function(arg0, arg1) {
         throw new Error(getStringFromWasm0(arg0, arg1));
     };
-    imports.wbg.__wbindgen_closure_wrapper4842 = function(arg0, arg1, arg2) {
-        const ret = makeClosure(arg0, arg1, 347, __wbg_adapter_18);
+    imports.wbg.__wbindgen_closure_wrapper4863 = function(arg0, arg1, arg2) {
+        const ret = makeClosure(arg0, arg1, 351, __wbg_adapter_18);
         return addHeapObject(ret);
     };
 

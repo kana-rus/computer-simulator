@@ -145,37 +145,36 @@ fn is_program_address(arg: &str) -> bool {
     _other                           => false
   }
 }
-fn assemble_with_arg_by( validate_func: fn(&str) -> bool,
-  mut args: SplitAsciiWhitespace, operation_id: &str, err_msg: &str
+fn assemble_with_program_address(
+  mut args: SplitAsciiWhitespace, operation_id: &str
 ) -> Result<String, String> {
   if let Some(arg) = args.next() {
-    if validate_func(arg) && args.next()==None {
+    if is_program_address(arg) && args.next()==None {
       Ok(format!("{} {}", operation_id, arg))
     } else {
-      Err(format!("Arg format is wrong. {}", err_msg))
+      Err(String::from("Arg format is wrong. 1 arg (data address) is required"))
     }
   } else {
-    Err(String::from(err_msg))
+    Err(String::from("1 arg (data address) is required"))
   }
 }
-pub fn assemble_with_data_address(
-  args: SplitAsciiWhitespace, operation_id: &str
+fn assemble_with_data_address(
+  mut args: SplitAsciiWhitespace, operation_id: &str
 ) -> Result<String, String> {
-  fn validate_func(arg: &str) -> bool {
-    is_direct_data_address(arg) || is_indirect_data_address(arg)
+  if let Some(arg) = args.next() {
+    if is_direct_data_address(arg) {
+      Ok(format!("{} {}", operation_id, arg))
+    } else if is_indirect_data_address(arg) {
+      let machine_code_arg = arg.split_at(1).1.parse::<u8>().unwrap() + 8;
+      Ok(format!("{} {}", operation_id, machine_code_arg))
+    } else {
+      Err(String::from("Arg format is wrong. 1 arg (data address) is required"))
+    }
+  } else {
+    Err(String::from("1 arg (data address) is required"))
   }
-  assemble_with_arg_by(
-    validate_func, args, operation_id, "1 arg (data address) is required"
-  )
 }
-pub fn assemble_with_program_address(
-  args: SplitAsciiWhitespace, operation_id: &str
-) -> Result<String, String> {
-  assemble_with_arg_by(
-    is_program_address, args, operation_id, "1 arg (program address) is required"
-  )
-}
-pub fn assemble_with_none(
+fn assemble_with_none(
   mut args: SplitAsciiWhitespace, operation_id: &str
 ) -> Result<String, String> {
   if args.next() == None {
@@ -272,100 +271,178 @@ fn load(
   exec_address: &str, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
 ) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  match data_list[data_index] {
-    Some(new_regis_val) => {
-      let next_index = parse_address_to_index(exec_address) + 1;
-      if next_index < 16 {
-        Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-      } else {
-        Err("ProgramcountError")
-      }
-    },
-    None => Err("InvalidDataAccessError")
+  if data_index < 8 { // direct_data_index
+    match data_list[data_index] {
+      Some(new_regis_val) => {
+        let next_index = parse_address_to_index(exec_address) + 1;
+        if next_index < 16 {
+          Ok((parse_index_to_address(next_index), new_regis_val, data_list))
+        } else {
+          Err("ProgramcountError")
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
+  } else { // indirect_data_index
+    match data_list[data_index - 8] {
+      Some(direct_data_index) => {
+        if direct_data_index < 0 {
+          Err("NegativeIndexError")
+        } else {
+          load(exec_address, data_list, direct_data_index as usize)
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
   }
 }
 fn store(
   exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
 ) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  let mut new_data_list = data_list;
-  new_data_list[data_index] = Some(regis_val);
-  let next_index = parse_address_to_index(exec_address) + 1;
-  if next_index < 16 {
-    Ok((parse_index_to_address(next_index), regis_val, new_data_list))
-  } else {
-    Err("ProgramcountError")
+  if data_index < 8 { // direct_data_index
+    let mut new_data_list = data_list;
+    new_data_list[data_index] = Some(regis_val);
+    let next_index = parse_address_to_index(exec_address) + 1;
+    if next_index < 16 {
+      Ok((parse_index_to_address(next_index), regis_val, new_data_list))
+    } else {
+      Err("ProgramcountError")
+    }
+  } else { // indirect_data_index
+    match data_list[data_index - 8] {
+      Some(direct_data_index) => {
+        if direct_data_index < 0 {
+          Err("NegativeIndexError")
+        } else {
+          store(exec_address, regis_val, data_list, direct_data_index as usize)
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
   }
 }
 fn add(
   exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
 ) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  match data_list[data_index] {
-    Some(data) => {
-      let new_regis_val = regis_val + data;
-      let next_index = parse_address_to_index(exec_address) + 1;
-      if next_index < 16 {
-        Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-      } else {
-        Err("ProgramcountError")
-      }
-    },
-    None => Err("InvalidDataAccessError")
+  if data_index < 8 { // direct_data_index
+    match data_list[data_index] {
+      Some(data) => {
+        let new_regis_val = regis_val + data;
+        let next_index = parse_address_to_index(exec_address) + 1;
+        if next_index < 16 {
+          Ok((parse_index_to_address(next_index), new_regis_val, data_list))
+        } else {
+          Err("ProgramcountError")
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
+  } else { // indirect_data_index
+    match data_list[data_index - 8] {
+      Some(direct_data_index) => {
+        if direct_data_index < 0 {
+          Err("NegativeIndexError")
+        } else {
+          add(exec_address, regis_val, data_list, direct_data_index as usize)
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
   }
 }
 fn sub(
   exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
 ) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  match data_list[data_index] {
-    Some(data) => {
-      let new_regis_val = regis_val - data;
-      let next_index = parse_address_to_index(exec_address) + 1;
-      if next_index < 16 {
-        Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-      } else {
-        Err("ProgramcountError")
-      }
-    },
-    None => Err("InvalidDataAccessError")
+  if data_index < 8 { // direct_data_index
+    match data_list[data_index] {
+      Some(data) => {
+        let new_regis_val = regis_val - data;
+        let next_index = parse_address_to_index(exec_address) + 1;
+        if next_index < 16 {
+          Ok((parse_index_to_address(next_index), new_regis_val, data_list))
+        } else {
+          Err("ProgramcountError")
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
+  } else { // indirect_data_index
+    match data_list[data_index - 8] {
+      Some(direct_data_index) => {
+        if direct_data_index < 0 {
+          Err("NegativeIndexError")
+        } else {
+          sub(exec_address, regis_val, data_list, direct_data_index as usize)
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
   }
 }
 fn mul(
   exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
 ) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  match data_list[data_index] {
-    Some(data) => {
-      let new_regis_val = regis_val * data;
-      let next_index = parse_address_to_index(exec_address) + 1;
-      if next_index < 16 {
-        Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-      } else {
-        Err("ProgramcountError")
-      }
-    },
-    None => Err("InvalidDataAccessError")
+  if data_index < 8 { // direct_data_index
+    match data_list[data_index] {
+      Some(data) => {
+        let new_regis_val = regis_val * data;
+        let next_index = parse_address_to_index(exec_address) + 1;
+        if next_index < 16 {
+          Ok((parse_index_to_address(next_index), new_regis_val, data_list))
+        } else {
+          Err("ProgramcountError")
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
+  } else { // indirect_data_index
+    match data_list[data_index - 8] {
+      Some(direct_data_index) => {
+        if direct_data_index < 0 {
+          Err("NegativeIndexError")
+        } else {
+          mul(exec_address, regis_val, data_list, direct_data_index as usize)
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
   }
 }
 fn div(
   exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
 ) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  match data_list[data_index] {
-    Some(divider) => {
-      if divider == 0 {
-        return Err("ZeroDividingError")
-      }
-      let new_regis_val = regis_val / divider;
-      let next_index = parse_address_to_index(exec_address) + 1;
-      if next_index < 16 {
-        Ok((parse_index_to_address(next_index), new_regis_val, data_list))
-      } else {
-        Err("ProgramcountError")
-      }
-    },
-    None => Err("InvalidDataAccessError")
+  if data_index < 8 { // direct_data_index
+    match data_list[data_index] {
+      Some(divider) => {
+        if divider == 0 {
+          return Err("ZeroDividingError")
+        }
+        let new_regis_val = regis_val / divider;
+        let next_index = parse_address_to_index(exec_address) + 1;
+        if next_index < 16 {
+          Ok((parse_index_to_address(next_index), new_regis_val, data_list))
+        } else {
+          Err("ProgramcountError")
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
+  } else { // indirect_data_index
+    match data_list[data_index - 8] {
+      Some(direct_data_index) => {
+        if direct_data_index < 0 {
+          Err("NegativeIndexError")
+        } else {
+          div(exec_address, regis_val, data_list, direct_data_index as usize)
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
   }
 }
 fn jump(
@@ -434,48 +511,87 @@ fn aprint(
   exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
 ) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  match data_list[data_index] {
-    Some(data) => {
-      print_in_display(data.to_string(), &display());
-      let next_index = parse_address_to_index(exec_address) + 1;
-      if next_index < 16 {
-        Ok((parse_index_to_address(next_index), regis_val, data_list))
-      } else {
-        Err("ProgramcountError")
-      }
-    },
-    None => Err("InvalidDataAccessError")
+  if data_index < 8 { // direct_data_index
+    match data_list[data_index] {
+      Some(data) => {
+        print_in_display(data.to_string(), &display());
+        let next_index = parse_address_to_index(exec_address) + 1;
+        if next_index < 16 {
+          Ok((parse_index_to_address(next_index), regis_val, data_list))
+        } else {
+          Err("ProgramcountError")
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
+  } else { // indirect_data_index
+    match data_list[data_index - 8] {
+      Some(direct_data_index) => {
+        if direct_data_index < 0 {
+          Err("NegativeIndexError")
+        } else {
+          aprint(exec_address, regis_val, data_list, direct_data_index as usize)
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
   }
 }
 fn clear(
   exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
 ) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  let mut new_data_list = data_list;
-  new_data_list[data_index] = Some(0);
-  let next_index = parse_address_to_index(exec_address) + 1;
-  if next_index < 16 {
-    Ok((parse_index_to_address(next_index), regis_val, new_data_list))
-  } else {
-    Err("ProgramcountError")
+  if data_index < 8 { // direct_data_index
+    let mut new_data_list = data_list;
+    new_data_list[data_index] = Some(0);
+    let next_index = parse_address_to_index(exec_address) + 1;
+    if next_index < 16 {
+      Ok((parse_index_to_address(next_index), regis_val, new_data_list))
+    } else {
+      Err("ProgramcountError")
+    }
+  } else { // indirect_data_index
+    match data_list[data_index - 8] {
+      Some(direct_data_index) => {
+        if direct_data_index < 0 {
+          Err("NegativeIndexError")
+        } else {
+          clear(exec_address, regis_val, data_list, direct_data_index as usize)
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
   }
 }
 fn inc(
   exec_address: &str, regis_val: i64, data_list: [Option<i64>; 8],
   /* arg */data_index: usize
 ) -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {
-  let mut new_data_list = data_list;
-  match new_data_list[data_index] {
-    Some(old_data) => {
-      new_data_list[data_index] = Some(old_data + 1);
-      let next_index = parse_address_to_index(exec_address) + 1;
-      if next_index < 16 {
-        Ok((parse_index_to_address(next_index), regis_val, new_data_list))
-      } else {
-        Err("ProgramcountError")
-      }
-    },
-    None => Err("InvalidDataAccessError")
+  if data_index < 8 { // direct_data_index
+    let mut new_data_list = data_list;
+    match new_data_list[data_index] {
+      Some(old_data) => {
+        new_data_list[data_index] = Some(old_data + 1);
+        let next_index = parse_address_to_index(exec_address) + 1;
+        if next_index < 16 {
+          Ok((parse_index_to_address(next_index), regis_val, new_data_list))
+        } else {
+          Err("ProgramcountError")
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
+  } else { // indirect_data_index
+    match data_list[data_index - 8] {
+      Some(direct_data_index) => {
+        if direct_data_index < 0 {
+          Err("NegativeIndexError")
+        } else {
+          inc(exec_address, regis_val, data_list, direct_data_index as usize)
+        }
+      },
+      None => Err("InvalidDataAccessError")
+    }
   }
 }
 fn halt() -> Result<(&'static str, i64, [Option<i64>; 8]), &'static str> {

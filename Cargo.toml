@@ -15,7 +15,6 @@ version = "0.3"
 # We need to enable the `DomRect` feature in order to use the
 # `get_bounding_client_rect` method.
 features = [
-    "console",
     "HtmlElement",
     "HtmlCollection",
     "MouseEvent",
