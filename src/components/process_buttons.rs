@@ -12,7 +12,7 @@ pub fn process_buttons(prop: &ProcessCallbacks) -> Html {
     let buttons_container_style = "
         display: flex;
         flex-flow: column;
-        margin-right: 2.5%;
+        margin-right: 3.5%;
         margin-left: auto;
     ";
     let button_style = "

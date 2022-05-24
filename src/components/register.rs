@@ -14,11 +14,18 @@ pub fn register(prop: &RegisterProps) -> Html {
     } else {
       prop.value.to_string()
     };
-  html!(
-    <div style="margin-top: 10px;">
-      {"Register"}<input value={register_content}
-        id="register" disabled=true style="margin-left: 4px;"
-      />
-    </div>
-  )
+    
+  html!{
+    <span style="display: flex;">
+      <span style="margin-right: 4px;">
+        <p style="margin: 0">{"Register"}</p>
+      </span>
+      <span>
+        <input id="register"
+          value={register_content} disabled=true
+          style="width: 75%;"
+        />
+      </span>
+    </span>
+  }
 }

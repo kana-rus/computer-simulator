@@ -3,9 +3,10 @@ use yew::{function_component, html};
 #[function_component(Display)]
 pub fn display() -> Html {
   let display_style = "
-  width: 90%;
+  width: 85%;
     height: calc(99% - 30px);
-    padding: 0  ;
+    padding: 0;
+    margin-left: 5px;
   "; // <p></p> 's height: 24px and margin: 6px
 
   html!{
