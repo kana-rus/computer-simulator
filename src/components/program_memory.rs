@@ -7,8 +7,9 @@ pub struct ProgramMemoryProp {
 
 fn acode_area_style(address: &str) -> &str {
   match address {
-    "f"        => "width: 60%;  height: 100%; margin-left: 4px;",
-    "a" | "c"  => "width: 60%;  height: 100%; margin-left: 2.8px;",
+    "f"        => "width: 60%;  height: 100%; margin-left: 4.8px;",
+    "c" | "e"  => "width: 60%;  height: 100%; margin-left: 3px;",
+    "a"        => "width: 60%;  height: 100%; margin-left: 3px;",
     _others    => "width: 60%;  height: 100%; margin-left: 2px;"
   }
 }

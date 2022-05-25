@@ -11,14 +11,16 @@ pub struct ModeRadioProp {
 #[function_component(ModeRadio)]
 pub fn mode_radio(prop: &ModeRadioProp) -> Html {
   let reset_button_style = "
-    margin-left: 10%;
+    position: absolute;
+    right: 8px;
+    margin: 3px auto;
     border-color: white;
     width: 45px;
     height: 27px;
   ";
 
   html! {
-    <div class="mode-radio-container">
+    <div class="mode-radio-container" style="position: relative;">
       <input checked={prop.is_edit_mode}
         type="radio" name="mode_radio" id="edit-button"
         onchange={prop.handle_mode_change.clone()}
