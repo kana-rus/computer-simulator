@@ -36,7 +36,7 @@ pub fn program_memory(prop: &ProgramMemoryProp) -> Html {
               <li style="list-style: none;">
                 {address}
                 <input
-                  class="assembly-code-area" spellcheck="false"
+                  class="assembly-code-area" spellcheck="false" type="url"
                   style={acode_area_style(address)}
                 />
                 <input
