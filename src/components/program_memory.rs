@@ -7,9 +7,9 @@ pub struct ProgramMemoryProp {
 
 fn input_area_style(address: &str) -> &str {
   match address {
-    "f"       => "width: 60%; margin-left: 5px;",
-    "a" | "c" => "width: 60%; margin-left: 4px;",
-    _others   => "width: 60%; margin-left: 2px;"
+    "f"             => "width: 60%; margin-left: 4.6px;",
+    "a" | "c" | "e" => "width: 60%; margin-left: 2.8px;",
+    _others         => "width: 60%; margin-left: 2px;"
   }
 }
 fn mcode_area_id(address: &str, executing_address: &str) -> &'static str {
@@ -28,7 +28,7 @@ pub fn program_memory(prop: &ProgramMemoryProp) -> Html {
 
     html!(
         <div style="text-align: center">
-          <p style="margin-bottom: 2.5%">{"Program"}</p>
+          <p style="margin-bottom: 6px;">{"Program"}</p>
           <ul style="margin: 0; padding: 0;">
             {program_memory_addresses.map(|address| html!{
               <li style="list-style: none;">
