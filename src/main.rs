@@ -174,13 +174,10 @@ fn app() -> Html {
           </span>
         </span>
       </div>
-      // <div style="display: flex; margin-top: 15px;">
-        <div style="margin: 15px 0 0 0; display: flex;">
-          <ProgramCounter address={*executing_address}/>
-          <Register value={*register_value} is_edit_mode={*executing_address==""}/>
-        </div>
-        // <ProcessButtons {handle_step} {handle_go_through}/>
-      // </div>
+      <div style="margin: 15px 0 0 0; display: flex;">
+        <ProgramCounter address={*executing_address}/>
+        <Register value={*register_value} is_edit_mode={*executing_address==""}/>
+      </div>
     </> 
   }
 }
