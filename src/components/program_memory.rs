@@ -29,7 +29,7 @@ pub fn program_memory(prop: &ProgramMemoryProp) -> Html {
 
     html!(
         <div style="text-align: center">
-          <p style="margin-bottom: 6px;">{"Program"}</p>
+          <p style="margin: 6px;">{"Program"}</p>
           <ul style="margin: 0; padding: 0;">
             {program_memory_addresses.map(|address| html!{
               <li style="list-style: none;">

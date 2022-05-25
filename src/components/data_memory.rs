@@ -21,7 +21,7 @@ pub fn data_memory(prop: &DataMemoryProps) -> Html {
 
   html!(
     <div style="text-align: center">
-      <p style="margin-bottom: 6px;">{"Data"}</p>
+      <p style="margin: 6px;">{"Data"}</p>
       <ul style="margin: 0; padding: 0;">
         {data_memory_indexes.map(|index| html!{
           <li style="list-style: none;">

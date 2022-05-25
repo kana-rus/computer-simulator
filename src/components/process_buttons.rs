@@ -30,7 +30,7 @@ pub fn process_buttons(prop: &ProcessCallbacks) -> Html {
           <button
             class="process-buttons" disabled=true
             style={button_style} onclick={prop.handle_go_through.clone()}
-        >{"go"}</button>
+          >{"go"}</button>
         </span>
     }
 }
