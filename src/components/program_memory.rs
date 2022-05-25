@@ -7,10 +7,10 @@ pub struct ProgramMemoryProp {
 
 fn acode_area_style(address: &str) -> &str {
   match address {
-    "f"        => "width: 60%; height: 100%; margin-left: 4.8px;",
-    "c" | "e"  => "width: 60%; height: 100%; margin-left: 3px;",
-    "a"        => "width: 60%; height: 100%; margin-left: 3px;",
-    _others    => "width: 60%; height: 100%; margin-left: 2px;"
+    "f"        => "width: 60%; height: 100%; padding: 3px; margin: 0 0 0 4.8px;",
+    "c" | "e"  => "width: 60%; height: 100%; padding: 3px; margin: 0 0 0 3px;",
+    "a"        => "width: 60%; height: 100%; padding: 3px; margin: 0 0 0 3px;",
+    _others    => "width: 60%; height: 100%; padding: 3px; margin: 0 0 0 2px;"
   }
 }
 
@@ -36,12 +36,12 @@ pub fn program_memory(prop: &ProgramMemoryProp) -> Html {
               <li style="list-style: none;">
                 {address}
                 <input
-                  class="assembly-code-area" spellcheck="false" type="url"
+                  class="assembly-code-area" spellcheck="false" type="email"
                   style={acode_area_style(address)}
                 />
                 <input
                   class="machine-code-area" id={mcode_area_id(address, prop.executing_address)}
-                  disabled=true style="width: 15%; height: 90%;"
+                  disabled=true style="width: 15%; height: 100%; padding: 3px; margin :0;"
                 />
               </li>
             }).collect::<Html>()}

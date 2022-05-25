@@ -4,7 +4,7 @@ use yew::{function_component, html};
 pub fn display() -> Html {
   let display_style = "
   width: 85%;
-    height: calc(99% - 30px);
+    height: calc(100% - 30px);
     padding: 0;
     margin-left: 5px;
   "; // <p></p> 's height: 24px and margin: 6px

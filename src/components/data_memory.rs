@@ -27,7 +27,8 @@ pub fn data_memory(prop: &DataMemoryProps) -> Html {
           <li style="list-style: none;">
             {&index}<input
               class="data-memory" spellcheck="false" type="number"
-              style="margin-left: 2px; width: 82%; height: 100%; margin-top: 0;"
+              style="margin-left: 2px; width: 82%; height: 100%;
+                     margin-top: 0; padding: 3px;"
               value={data_appearance(prop.data_list[*index])}
             />
           </li>
