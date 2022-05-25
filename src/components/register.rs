@@ -16,9 +16,9 @@ pub fn register(prop: &RegisterProps) -> Html {
     };
     
   html!{
-    <span style="display: flex;">
-      <span style="margin-right: 4px;">
-        <p style="margin: 0">{"Register"}</p>
+    <span style="display: flex; margin-top: 6px;">
+      <span style="margin: 0;">
+        <p style="margin: 0; width: 90px;">{"Register"}</p>
       </span>
       <span>
         <input id="register"

@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta name="viewport" content="height=device-height, initial-scale=1.0">
     <meta charset="UTF-8">
     <title>ComputerSimulator</title>
     <style>
         * {
+            font-size: 18px;
+            /*font-family: monospace, serif;*/
             --border-color-disabled: rgba(100, 100, 100, 0.4);
             --background-disabled: rgba(0, 0, 200, 0.1);
             --background-executing: rgb(255, 140, 0);
@@ -13,6 +16,7 @@
         :disabled {
             border-color: var(--border-color-disabled);
             background: var(--background-disabled);
+            color: var(--border-color-disabled);
         }
         #executing {
             background: var(--background-executing);
@@ -22,6 +26,9 @@
         }
         input {
             height: 20px;
+        }
+        button {
+            font-size: 14px;
         }
     </style>
 </head>

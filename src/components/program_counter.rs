@@ -9,14 +9,14 @@ pub struct ProgramCounterProp {
 pub fn program_counter(prop: &ProgramCounterProp) -> Html {
   html!{
     <span style="display: flex;">
-      <span style="margin-right: 2.2px;">
-        <p style="margin: 0">{"Program"}</p>
-        <p style="margin: 0">{"Counter"}</p>
+      <span style="margin: 0;">
+        <p style="margin: 0; width: 90px;">{"Program"}</p>
+        <p style="margin: 0; width: 90px;">{"Counter"}</p>
       </span>
-      <span>
+      <span style="position: relative; width: 75%;">
         <input id="program-counter"
           value={prop.address}  disabled=true
-          style="margin-top: 8px; width: 75%;"
+          style="position: absolute; width: 75%; top: 50%; transform: translateY(-50%);"
         />
       </span>
     </span>

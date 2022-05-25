@@ -270,7 +270,7 @@ async function load(module, imports) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('computer-emulator-26d30d0e5dd08c47_bg.wasm', import.meta.url);
+        input = new URL('computer-emulator-7f8d3e6358ed382b_bg.wasm', import.meta.url);
     }
     const imports = {};
     imports.wbg = {};

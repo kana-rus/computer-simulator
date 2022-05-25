@@ -171,7 +171,7 @@ fn app() -> Html {
           </span>
         </span>
       </div>
-      <div style="display: flex; margin-top: 40px;">
+      <div style="display: flex; margin-top: 30px;">
         <span style="margin: auto 0 0 0;">
           <ProgramCounter address={*executing_address}/>
           <Register value={*register_value} is_edit_mode={*executing_address==""}/>
