@@ -1,6 +1,6 @@
 use yew::{function_component, html, Callback, Event, MouseEvent, use_state_eq};
 use wasm_bindgen::{JsCast};
-use web_sys::{window, HtmlInputElement};
+use web_sys::{HtmlInputElement};
 
 mod components; use components::{
   mode_radio::ModeRadio,
@@ -37,11 +37,11 @@ fn app() -> Html {
   let mcode_list = use_state_eq(|| [(0_usize, 0_usize); 16]);
 
 
-  let handle_reset = Callback::from(|_:MouseEvent| {
+  /*let handle_reset = Callback::from(|_:MouseEvent| {
     window().expect("Window not set")
             .location()
             .reload().expect("Failed to reload");
-  });
+  });*/
     
   let handle_mode_change = {
     let executing_address = executing_address.clone();
@@ -154,10 +154,13 @@ fn app() -> Html {
   
   html! {
     <>
-      <ModeRadio
-        {handle_mode_change} {handle_reset}
-        is_edit_mode={*executing_address==""}
-      />
+      <header style="display: flex;">
+        <ModeRadio
+          {handle_mode_change} // {handle_reset}
+          is_edit_mode={*executing_address==""}
+        />
+        <ProcessButtons {handle_step} {handle_go_through}/>
+      </header>
       <div style="display: flex">
         <span style="flex-basis: 50%;">
           <ProgramMemory executing_address={*executing_address}/>
@@ -171,13 +174,13 @@ fn app() -> Html {
           </span>
         </span>
       </div>
-      <div style="display: flex; margin-top: 15px;">
-        <span style="margin: auto 0 0 0;">
+      // <div style="display: flex; margin-top: 15px;">
+        <div style="margin: 15px 0 0 0; display: flex;">
           <ProgramCounter address={*executing_address}/>
           <Register value={*register_value} is_edit_mode={*executing_address==""}/>
-        </span>
-        <ProcessButtons {handle_step} {handle_go_through}/>
-      </div>
+        </div>
+        // <ProcessButtons {handle_step} {handle_go_through}/>
+      // </div>
     </> 
   }
 }

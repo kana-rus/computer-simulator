@@ -270,7 +270,7 @@ async function load(module, imports) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('computer-emulator-69756b3043b72fe0_bg.wasm', import.meta.url);
+        input = new URL('computer-emulator-1b354acbd2c9256a_bg.wasm', import.meta.url);
     }
     const imports = {};
     imports.wbg = {};
@@ -325,10 +325,6 @@ async function init(input) {
     imports.wbg.__wbg_document_99eddbbc11ec831e = function(arg0) {
         const ret = getObject(arg0).document;
         return isLikeNone(ret) ? 0 : addHeapObject(ret);
-    };
-    imports.wbg.__wbg_location_fa9019d2eb2195e8 = function(arg0) {
-        const ret = getObject(arg0).location;
-        return addHeapObject(ret);
     };
     imports.wbg.__wbg_body_2a1ff14b05042a51 = function(arg0) {
         const ret = getObject(arg0).body;
@@ -385,9 +381,6 @@ async function init(input) {
         const ret = getObject(arg0).item(arg1 >>> 0);
         return isLikeNone(ret) ? 0 : addHeapObject(ret);
     };
-    imports.wbg.__wbg_reload_f0195c5428ac7907 = function() { return handleError(function (arg0) {
-        getObject(arg0).reload();
-    }, arguments) };
     imports.wbg.__wbg_instanceof_Element_4fafc1ceb4cdee77 = function(arg0) {
         const ret = getObject(arg0) instanceof Element;
         return ret;
@@ -511,8 +504,8 @@ async function init(input) {
     imports.wbg.__wbindgen_throw = function(arg0, arg1) {
         throw new Error(getStringFromWasm0(arg0, arg1));
     };
-    imports.wbg.__wbindgen_closure_wrapper4863 = function(arg0, arg1, arg2) {
-        const ret = makeClosure(arg0, arg1, 351, __wbg_adapter_18);
+    imports.wbg.__wbindgen_closure_wrapper4848 = function(arg0, arg1, arg2) {
+        const ret = makeClosure(arg0, arg1, 348, __wbg_adapter_18);
         return addHeapObject(ret);
     };
 
