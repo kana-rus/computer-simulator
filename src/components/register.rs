@@ -24,8 +24,7 @@ pub fn register(prop: &RegisterProps) -> Html {
         <input id="register"
           value={register_content} disabled=true
           style="position: absolute; width: 100%;
-                 top: 50%; transform: translateY(-50%);
-          "
+                 top: 50%; transform: translateY(-50%);"
         />
       </span>
     </span>

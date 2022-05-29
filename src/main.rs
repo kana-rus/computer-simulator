@@ -1,4 +1,4 @@
-use yew::{function_component, html, Callback, Event, MouseEvent, use_state_eq};
+use yew::{function_component, html, Callback, Event, MouseEvent, use_state_eq, use_state};
 use wasm_bindgen::{JsCast};
 use web_sys::{HtmlInputElement};
 
@@ -31,11 +31,10 @@ mod utils; use utils::{
 
 #[function_component(App)]
 fn app() -> Html {
-  let executing_address = use_state_eq(|| "");
-  let register_value = use_state_eq(|| 0_i64);
+  let executing_address = use_state(|| "");
+  let register_value = use_state(|| 0_i64);
   let data_list = use_state_eq(|| [None; 8]);
   let mcode_list = use_state_eq(|| [(0_usize, 0_usize); 16]);
-
 
   /*let handle_reset = Callback::from(|_:MouseEvent| {
     window().expect("Window not set")
@@ -154,13 +153,6 @@ fn app() -> Html {
   
   html! {
     <>
-      <header style="display: flex;">
-        <ModeRadio
-          {handle_mode_change} // {handle_reset}
-          is_edit_mode={*executing_address==""}
-        />
-        <ProcessButtons {handle_step} {handle_go_through}/>
-      </header>
       <div style="display: flex">
         <span style="flex-basis: 50%;">
           <ProgramMemory executing_address={*executing_address}/>
@@ -174,10 +166,26 @@ fn app() -> Html {
           </span>
         </span>
       </div>
-      <div style="margin: 15px 0 0 0; display: flex;">
-        <ProgramCounter address={*executing_address}/>
-        <Register value={*register_value} is_edit_mode={*executing_address==""}/>
-      </div>
+      <footer>
+        <span style="display: flex; flex-basis: 47%; max-width: 480px;">
+          <ProgramCounter address={*executing_address}/>
+          <Register value={*register_value} is_edit_mode={*executing_address==""}/>
+        </span>
+        <span
+          style="display: flex; margin-left: 5%; margin-right: 13px;
+                flex-basis: 53%;"
+        >
+          <ModeRadio
+            {handle_mode_change} // {handle_reset}
+            is_edit_mode={*executing_address==""}
+          />
+          <a style="color: blue; flex-basis: 25px;"
+             target="_blank" rel="noopener noreferrer"
+             href="https://www.i.h.kyoto-u.ac.jp/users/tsuiki/vma/setumeinew.html"
+          >{"ref"}</a>
+          <ProcessButtons {handle_step} {handle_go_through}/>
+        </span>
+      </footer>
     </> 
   }
 }

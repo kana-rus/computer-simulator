@@ -1,36 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta name="viewport" content="height=device-height, initial-scale=1.0">
-    <meta charset="UTF-8">
-    <title>ComputerSimulator</title>
-    <style>
-        * {
-            --border-color-disabled: rgba(100, 100, 100, 0.4);
-            --background-disabled: rgba(0, 0, 200, 0.1);
-            --background-executing: rgb(255, 140, 0);
-            --background-error: rgba(255, 20, 60, 0.8);
-        }
-        :disabled {
-            border-color: var(--border-color-disabled);
-            background: var(--background-disabled);
-        }
-        #executing {
-            background: var(--background-executing);
-        }
-        #error {
-            background: var(--background-error);
-        }
-        input {
-            height: 20px;
-        }
-    </style>
-    <link rel="preload" href="/computer-emulator-c42aa8d3fa8546c2_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
-    <link rel="modulepreload" href="/computer-emulator-c42aa8d3fa8546c2.js"></head>
-<body>
-    <script type="module">
-        import init from '/computer-emulator-c42aa8d3fa8546c2.js';
-        init('/computer-emulator-c42aa8d3fa8546c2_bg.wasm');
-    </script>
-</body>
+    <head>
+        <meta name="viewport" content="height=device-height, initial-scale=1.0">
+        <meta charset="UTF-8">
+        <title>ComputerSimulator</title>
+        <style>
+            * {
+                --border-color-disabled: rgba(100, 100, 100, 0.4);
+                --background-disabled: rgba(0, 0, 200, 0.1);
+                --background-executing: rgb(255, 140, 0);
+                --background-error: rgba(255, 20, 60, 0.8);
+            }
+            :disabled {
+                border-color: var(--border-color-disabled);
+                background: var(--background-disabled);
+            }
+            button:disabled {
+                color: var(--border-color-disabled);
+            }
+            #executing {
+                background: var(--background-executing);
+            }
+            #error {
+                background: var(--background-error);
+            }
+            input {
+                height: 20px;
+            }
+            body {
+                margin-top: 0;
+            }
+            #display {
+                width: 90%;
+                height: calc(100% - 30px);
+                padding: 0;
+                margin-left: 5px;
+            }
+            footer {
+                max-width: 480px;
+                margin: 10px auto 0 auto;
+            }
+            a {
+                margin: auto;
+            }
+            @media (min-width: 460px) {
+                footer {
+                    margin-top: 30px;
+                }
+            }
+            @media (min-width: 680px) {
+                body {
+                    margin-top: 10px;
+                }
+                #display {
+                    width: 85%;
+                }
+                footer {
+                    display:  flex;
+                    margin-top: 40px;
+                    padding-left: 10px;
+                    max-width: 100%;
+                }
+            }
+            @media (min-width: 800px) {
+                a::after {
+                    /* after "ref" */
+                    content: "erence";
+                }
+                a {
+                    margin-right: 12px;
+                    margin-left: auto;
+                }
+            }
+            @media (min-width: 1100px) {
+                footer {
+                    padding-left: 4%;
+                }
+            }
+        </style>
+        <link rel="preload" href="/computer-emulator-d772199609b1815a_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
+        <link rel="modulepreload" href="/computer-emulator-d772199609b1815a.js">
+    </head>
+    <body>
+        <script type="module">
+            import init from '/computer-emulator-d772199609b1815a.js';
+            init('/computer-emulator-d772199609b1815a_bg.wasm');
+        </script>
+    </body>
 </html>

@@ -10,7 +10,7 @@ pub struct ModeRadioProp {
 #[function_component(ModeRadio)]
 pub fn mode_radio(prop: &ModeRadioProp) -> Html {
   html! {
-    <div style="margin: 8px; width: 180px;">
+    <div style="width: 160px; margin: auto;">
       <label>
       <input checked={prop.is_edit_mode}
         type="radio" name="mode_radio" id="edit-button"
