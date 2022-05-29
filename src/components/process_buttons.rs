@@ -15,6 +15,7 @@ pub fn process_buttons(prop: &ProcessCallbacks) -> Html {
         border-color: white;
         border-radius: 20px;
         font-size: 15px;
+        padding: 0;
     ";
 
     html!{
